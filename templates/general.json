@@ -1,0 +1,28 @@
+{
+    "entities": [
+      {
+        "display_name": "experience_level",
+        "values": [
+          {"value": "entry", "synonyms": ["beginner", "new", "starting out"]},
+          {"value": "mid", "synonyms": ["intermediate", "few years"]},
+          {"value": "senior", "synonyms": ["experienced", "senior", "veteran"]}
+        ]
+      },
+      {
+        "display_name": "availability",
+        "values": [
+          {"value": "full_time", "synonyms": ["full-time", "40 hours"]},
+          {"value": "part_time", "synonyms": ["part-time", "partial"]},
+          {"value": "contract", "synonyms": ["freelance", "temporary"]}
+        ]
+      }
+    ],
+    "default_questions": [
+      "How many years of experience do you have in this field?",
+      "What skills or qualifications do you have that make you a good fit?",
+      "Tell me about your availability and preferred work schedule.",
+      "What are you looking for in your next position?",
+      "Do you have any questions about the role or company?"
+    ],
+    "conversational_style": "professional but friendly, with occasional casual language"
+  }

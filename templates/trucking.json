@@ -1,0 +1,30 @@
+{
+    "entities": [
+      {
+        "display_name": "truck_type",
+        "values": [
+          {"value": "semi", "synonyms": ["tractor-trailer", "18-wheeler"]},
+          {"value": "flatbed", "synonyms": ["open bed", "platform"]},
+          {"value": "tanker", "synonyms": ["tank truck", "liquid hauler"]},
+          {"value": "refrigerated", "synonyms": ["reefer", "cold haul"]},
+          {"value": "box truck", "synonyms": ["straight truck", "cube van"]}
+        ]
+      },
+      {
+        "display_name": "schedule_preference",
+        "values": [
+          {"value": "local", "synonyms": ["day runs", "home daily"]},
+          {"value": "regional", "synonyms": ["few days out"]},
+          {"value": "long-haul", "synonyms": ["OTR", "over the road", "cross country"]}
+        ]
+      }
+    ],
+    "default_questions": [
+      "How many years of commercial driving experience do you have?",
+      "What types of trucks have you driven?",
+      "Do you have experience with interstate driving?",
+      "Tell me about your driving record.",
+      "What kind of schedule are you looking for?"
+    ],
+    "conversational_style": "casual, using trucking terminology like 'haulin', 'rig', etc."
+  }

@@ -1,0 +1,309 @@
+[
+  {
+    "displayName": "Welcome",
+    "description": "Greets the candidate and introduces the interview.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Hi there! Thanks for taking the time to chat with me today. I'm conducting interviews for our Truck Driver position. So, ready to get started?",
+              "Hey! Welcome to the interview! We're looking for a great Truck Driver to join our team, and I'm here to see if you might be a good fit. Sound good?",
+              "Hello! Thanks for being here. Let's dive right into the interview for the Truck Driver role. First things first, do you have any initial questions before we get started?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Experience Questions"
+      }
+    ]
+  },
+  {
+    "displayName": "Experience Questions",
+    "description": "Asks about the candidate's OTR experience and freight types.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Okay, great! First, could you describe your OTR (Over-The-Road) experience, including the types of freight you've hauled? Like, what's the heaviest load you've taken?",
+              "So, let's talk about your experience. Can you walk me through your OTR experience and give me a feel for the kinds of freight you're used to hauling? What was your average mileage per load?",
+              "Alright, let's start with your background. What kind of OTR experience do you have? Tell me about the variety of freight you've handled in the past. How does that compare to what you'd ideally want to haul?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Skills Assessment"
+      }
+    ]
+  },
+  {
+    "displayName": "Skills Assessment",
+    "description": "Questions related to required skills, including HOS regulations and ELD usage.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Got it! Now, how about your understanding and experience with Hours of Service (HOS) regulations? Like, what's the daily rule for you?",
+              "Okay, next up: HOS. Tell me about your experience with Hours of Service regulations. How do you ensure you stay compliant with them?",
+              "Alright, let's switch gears and talk about regulations. What is your understanding of HOS regulations and how do you stay on top of this while on the road?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Do you have experience with ELD (Electronic Logging Device) devices, and which ones are you familiar with? Did you like it, or not at all?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Can you walk me through your process for performing pre-trip and post-trip inspections? How long does it typically take you?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Schedule Discussion"
+      }
+    ]
+  },
+  {
+    "displayName": "Schedule Discussion",
+    "description": "Discusses the candidate's preferred work schedule and regional options.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Great, so now thinking about work/life balance, what's your preferred home time schedule? We have OTR routes and regional options available.",
+              "So, home time... pretty important, right? What kind of home time schedule are you looking for? Are you interested in our regional opportunities, or more interested in OTR?",
+              "Okay, shifting to scheduling. What does your ideal home time look like, and are you interested in regional jobs with a weekly home time?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Candidate Questions"
+      }
+    ]
+  },
+  {
+    "displayName": "Candidate Questions",
+    "description": "Handles any questions the candidate may have about the job or company.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Awesome! Before we move on, do you have any questions for me about the position, the company, or anything else?",
+              "Okay, one more thing. Do you have any questions for me about the job or our company? Now is the time to ask!",
+              "Alright, we are getting to the end of the interview process. What kind of equipment do you have?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "$session.params.candidate_question_type = \"type_of_freight\"",
+        "transition": "Type Of Freight"
+      },
+      {
+        "condition": "$session.params.candidate_question_type = \"trucks\"",
+        "transition": "Trucks"
+      },
+      {
+        "condition": "$session.params.candidate_question_type = \"miles\"",
+        "transition": "Miles"
+      },
+      {
+        "condition": "$session.params.candidate_question_type = \"age_of_equipment\"",
+        "transition": "Age Of Equipment"
+      },
+      {
+        "condition": "$session.params.candidate_question_type = \"breakdowns\"",
+        "transition": "Breakdowns"
+      },
+      {
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "Scheduling",
+    "description": "Sets up the next steps in the hiring process.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Great! Thanks for all your answers. Next steps will be X, Y, and Z. Is that something you are interested in?",
+              "Okay, this was a great conversation and all the questions were answered. The hiring team will do Y and Z next. Are you okay with proceeding?",
+              "Wonderful. Let's set up Z, Y, and X. Do you want to move forward with that?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Conclusion"
+      }
+    ]
+  },
+  {
+    "displayName": "Conclusion",
+    "description": "Ends the conversation and thanks the candidate.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Okay, that's it from my side. Thanks again for your time, and we'll be in touch soon! Have a great day!",
+              "Alright, thanks for chatting with me today! We'll let you know about the next steps soon. You have a good one!",
+              "Great! That wraps things up. Appreciate you taking the time to interview. We'll be in contact shortly with the next steps. Bye for now!"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": []
+  },
+  {
+    "displayName": "Type Of Freight",
+    "description": "Type of freight to be hauled",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We primarily haul [Specific type of freight, e.g., general commodities, refrigerated goods] across the [Region, e.g., Midwest, Southeast]. We also have dedicated runs for [Specific client or product]."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "Trucks",
+    "description": "What type of trucks",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We maintain a fleet of newer [Truck Brand, e.g., Freightliner, Kenworth] trucks, typically no more than [Age, e.g., 3] years old. All trucks are equipped with [Features, e.g., ELD, APUs, inverters] and undergo regular maintenance."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "Miles",
+    "description": "Miles calculated",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We use [Mileage system, e.g., PC Miler, Rand McNally] practical route mileage for calculating driver pay."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "Age Of Equipment",
+    "description": "Average Age of Equipment",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Our average equipment age is about [X] years, and we have a continuous replacement schedule to keep our fleet modern and reliable."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "Breakdowns",
+    "description": "Policy For Breakdowns",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We have a 24/7 maintenance and support team available to assist with breakdowns. We'll work to get you back on the road as quickly as possible, and provide alternative transportation if necessary."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  }
+]
