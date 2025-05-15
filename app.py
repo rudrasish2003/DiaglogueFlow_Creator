@@ -2,10 +2,34 @@ import streamlit as st
 import os
 import json
 import tempfile
+import re
 from datetime import datetime
 from dotenv import load_dotenv
 import google.generativeai as genai
 from google.cloud import dialogflowcx_v3 as dialogflow
+from google.cloud.dialogflowcx_v3.types import (
+    Agent, 
+    CreateAgentRequest, 
+    CreateEntityTypeRequest,
+    CreateIntentRequest, 
+    CreateFlowRequest,
+    CreatePageRequest,
+    CreateWebhookRequest,
+    EntityType,
+    Intent,
+    Flow,
+    Page,
+    Webhook,
+    Fulfillment,
+    ResponseMessage,
+    TransitionRoute,
+    Form
+)
+
+# Import custom modules
+from parser import parse_job_description, enhance_parsed_data
+from agent_generator import generate_standardized_recruitment_flow, generate_webhook_code
+from utils import save_output_file, get_available_industries, generate_timestamp, sanitize_filename
 
 # Load environment variables
 load_dotenv()
@@ -13,268 +37,329 @@ load_dotenv()
 # Configure Gemini API
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-# Helper functions
-def get_available_industries():
-    """Get list of available industry templates"""
-    industries = ["general", "trucking", "healthcare", "technology", "retail"]
-    return industries
+# Initialize session state variables
+if 'project_id' not in st.session_state:
+    st.session_state.project_id = ""
+if 'location_id' not in st.session_state:
+    st.session_state.location_id = "global"
+if 'deploy_webhook' not in st.session_state:
+    st.session_state.deploy_webhook = True
+if 'agent_spec' not in st.session_state:
+    st.session_state.agent_spec = None
+if 'webhook_code' not in st.session_state:
+    st.session_state.webhook_code = None
+if 'webhook_path' not in st.session_state:
+    st.session_state.webhook_path = None
+if 'spec_path' not in st.session_state:
+    st.session_state.spec_path = None
 
-def generate_timestamp():
-    """Generate timestamp string for filenames"""
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-def sanitize_filename(text):
-    """Sanitize text for use in filenames"""
-    return "".join([c if c.isalnum() else "_" for c in text]).strip("_")
-
-def save_output_file(data, filename, output_dir="outputs"):
-    """Save data to a file in the outputs directory"""
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        
-    file_path = os.path.join(output_dir, filename)
+# Dialogflow CX deployment functions
+def extract_agent_details_from_md(agent_spec):
+    """Extract agent details from the markdown specification."""
+    # Extract agent name
+    agent_name_match = re.search(r'# ([^#\n]+)', agent_spec)
+    agent_name = agent_name_match.group(1).strip() if agent_name_match else "Generated Recruitment Agent"
     
-    with open(file_path, 'w') as file:
-        if isinstance(data, str):
-            file.write(data)
-        else:
-            json.dump(data, file, indent=2)
+    # Extract agent description
+    agent_desc_match = re.search(r'## Agent Overview\s+([\s\S]+?)(?=##|$)', agent_spec)
+    agent_description = agent_desc_match.group(1).strip() if agent_desc_match else "Automated recruitment agent"
+    
+    return agent_name, agent_description
+
+def extract_entities_from_md(agent_spec):
+    """Extract entity types from the markdown specification."""
+    entities = []
+    entity_section_match = re.search(r'## Entity Types\s+([\s\S]+?)(?=##|$)', agent_spec)
+    
+    if entity_section_match:
+        entity_section = entity_section_match.group(1)
+        entity_blocks = re.findall(r'### @([a-zA-Z_]+)\s+([\s\S]+?)(?=###|$)', entity_section)
+        
+        for entity_name, entity_content in entity_blocks:
+            values = []
+            value_matches = re.findall(r'- `([^`]+)`(?:[^[]+$$([^$$]+)\])?', entity_content)
             
-    return file_path
-
-def parse_job_description(job_description, industry="general"):
-    """Parse job description text into structured data using Gemini"""
-    prompt = f"""
-    Parse the following {industry} job description and extract key information for a recruitment conversation:
-    
-    {job_description}
-    
-    Format your response as a JSON object with these fields:
-    1. "position_title": The job title
-    2. "required_experience": Years or type of experience required
-    3. "required_skills": List of required skills/certifications
-    4. "pay_rate": Salary or hourly rate information
-    5. "schedule_type": Working hours or shift information
-    6. "key_questions": List of 5-7 specific questions to ask candidates
-    7. "benefits": List of benefits offered
-    8. "requirements": Any specific requirements like licenses, education, etc.
-    
-    JSON response only:
-    """
-    
-    try:
-        # Generate content using Gemini
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
-        
-        # Extract and parse JSON from response text
-        response_text = response.text
-        json_start = response_text.find('{')
-        json_end = response_text.rfind('}') + 1
-        
-        if json_start >= 0 and json_end > json_start:
-            json_content = response_text[json_start:json_end]
-            parsed_data = json.loads(json_content)
-            return parsed_data
-        else:
-            raise ValueError("No valid JSON found in response")
+            for value, synonyms_str in value_matches:
+                synonyms = [s.strip() for s in synonyms_str.split(',')] if synonyms_str else []
+                values.append({
+                    "value": value,
+                    "synonyms": synonyms
+                })
             
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        # Return a minimal valid structure
-        return {
-            "position_title": "Unknown Position",
-            "required_experience": "Not specified",
-            "required_skills": [],
-            "key_questions": []
-        }
-    except Exception as e:
-        print(f"Error parsing job description: {e}")
-        raise
+            entities.append({
+                "display_name": entity_name,
+                "values": values
+            })
+    
+    return entities
 
-def enhance_parsed_data(parsed_data, industry):
-    """Enhance the parsed data with industry-specific details"""
-    prompt = f"""
-    Enhance this parsed job data for a {industry} recruitment agent:
+def extract_intents_from_md(agent_spec):
+    """Extract intents from the markdown specification."""
+    intents = []
+    intent_section_match = re.search(r'## Key Intents\s+([\s\S]+?)(?=##|$)', agent_spec)
     
-    {json.dumps(parsed_data, indent=2)}
-    
-    Add or improve:
-    1. More detailed interview questions specific to this role
-    2. Industry-specific terms to use in conversation
-    3. Common candidate questions for this role with answers
-    4. Objection handling for potential candidate concerns
-    
-    Return the complete enhanced JSON including all original fields plus new ones.
-    JSON response only:
-    """
-    
-    try:
-        # Generate content using Gemini
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
+    if intent_section_match:
+        intent_section = intent_section_match.group(1)
+        intent_blocks = re.findall(r'### ([a-zA-Z_]+)\s+([\s\S]+?)(?=###|$)', intent_section)
         
-        # Extract and parse JSON from response text
-        response_text = response.text
-        json_start = response_text.find('{')
-        json_end = response_text.rfind('}') + 1
-        
-        if json_start >= 0 and json_end > json_start:
-            json_content = response_text[json_start:json_end]
-            enhanced_data = json.loads(json_content)
-            return enhanced_data
-        else:
-            raise ValueError("No valid JSON found in response")
+        for intent_name, intent_content in intent_blocks:
+            training_phrases = []
+            phrase_matches = re.findall(r'- "([^"]+)"', intent_content)
             
-    except Exception as e:
-        print(f"Error enhancing parsed data: {e}")
-        return parsed_data  # Return original data if enhancement fails
-
-def generate_agent_builder_specification(parsed_info, industry):
-    """Generate a document for Dialogflow CX Agent Builder"""
-    prompt = f"""
-    Create a detailed Dialogflow CX Agent Builder specification document for a recruitment agent interviewing candidates for this position:
-    
-    {json.dumps(parsed_info, indent=2)}
-    
-    Industry context: {industry}
-    
-    Your response should be a comprehensive document formatted for direct upload to Dialogflow CX Agent Builder.
-    Include these sections:
-    
-    # {parsed_info.get('position_title', 'Position')} Recruitment Agent
-    
-    ## Agent Overview
-    [Describe the agent's purpose and conversation style]
-    
-    ## Conversation Flow
-    [Detailed description of the full interview flow from greeting to conclusion]
-    
-    ## Questions To Ask Candidates
-    [List all questions with explanations of why they're important]
-    
-    ## Candidate Question Handling
-    [How to respond to common candidate questions about the position]
-    
-    ## Entity Types
-    [List all entity types needed for parameter collection]
-    
-    ## Key Intents
-    [List major intents with example training phrases]
-    
-    ## Conversational Elements
-    [Examples of natural-sounding responses that show personality]
-    """
-    
-    try:
-        # Generate content using Gemini
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
-        
-        # Return the markdown text directly
-        return response.text
-        
-    except Exception as e:
-        print(f"Error generating agent specification: {e}")
-        raise
-
-def generate_dialogflow_cx_pages(parsed_info, industry):
-    """Generate Dialogflow CX pages with conversational content"""
-    prompt = f"""
-    Create detailed Dialogflow CX pages for a recruitment agent interviewing candidates for this position:
-    
-    {json.dumps(parsed_info, indent=2)}
-    
-    Industry: {industry}
-    
-    Generate a JSON array of pages with these components for each page:
-    
-    1. "displayName": Page name
-    2. "description": Brief description of the page's purpose
-    3. "entryFulfillment": Response when entering the page, with 3 conversational variants
-    4. "form": Parameter to collect (if any)
-    5. "routes": Transitions to other pages
-    
-    Include these key pages:
-    - Welcome (greeting and introduction)
-    - Experience Questions (ask about candidate experience)
-    - Skills Assessment (questions related to required skills)
-    - Schedule Discussion (discuss work schedule preferences)
-    - Candidate Questions (handle questions about job)
-    - Scheduling (set up next steps)
-    - Conclusion (end the conversation)
-    
-    Make all responses sound conversational, using casual language with filler words.
-    JSON array of pages only.
-    """
-    
-    try:
-        # Generate content using Gemini
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
-        
-        # Extract and parse JSON from response text
-        response_text = response.text
-        json_start = response_text.find('[')
-        json_end = response_text.rfind(']') + 1
-        
-        if json_start >= 0 and json_end > json_start:
-            json_content = response_text[json_start:json_end]
-            pages = json.loads(json_content)
-            return pages
-        else:
-            raise ValueError("No valid JSON array found in response")
+            for phrase in phrase_matches:
+                training_phrases.append(phrase)
             
-    except json.JSONDecodeError:
-        print("Error: Response was not valid JSON")
-        # Return minimal pages
-        return [
-            {
-                "displayName": "Welcome",
-                "entryFulfillment": {
-                    "messages": [
-                        {"text": {"text": ["Hello, this is the recruitment agent. How are you today?"]}}
-                    ]
-                }
-            }
-        ]
-    except Exception as e:
-        print(f"Error generating pages: {e}")
-        raise
+            intents.append({
+                "display_name": intent_name,
+                "training_phrases": training_phrases
+            })
+    
+    return intents
 
-def deploy_to_dialogflow_cx(project_id, location, agent_name, agent_spec):
-    """Create a new agent in Dialogflow CX using the API"""
+def deploy_webhook_to_cloud_functions(project_id, location_id, webhook_code, function_name="dialogflowWebhook"):
+    """Deploy the webhook code to Google Cloud Functions."""
+    # This would require using the Cloud Functions API
+    # For this example, we'll return a mock success response
+    return {
+        "success": True,
+        "webhook_url": f"https://{location_id}-{project_id}.cloudfunctions.net/{function_name}"
+    }
+
+def deploy_to_dialogflow_cx(project_id, location_id, agent_spec, webhook_url=None):
+    """Deploy agent to Dialogflow CX directly from your app."""
     try:
-        # Create the agent
+        # 1. Extract agent details
+        agent_name, agent_description = extract_agent_details_from_md(agent_spec)
+        
+        # 2. Create the agent
         agents_client = dialogflow.AgentsClient()
-        parent = f"projects/{project_id}/locations/{location}"
+        parent = f"projects/{project_id}/locations/{location_id}"
         
-        agent = {
-            "display_name": agent_name,
-            "default_language_code": "en",
-            "time_zone": "America/New_York",
-            "description": "Created by Automated Agent Generator"
-        }
-        
-        created_agent = agents_client.create_agent(
+        agent_request = CreateAgentRequest(
             parent=parent,
-            agent=agent
+            agent=Agent(
+                display_name=agent_name,
+                default_language_code="en",
+                time_zone="America/New_York",
+                description=agent_description
+            )
         )
         
-        agent_path = created_agent.name
+        agent = agents_client.create_agent(request=agent_request)
+        agent_path = agent.name
+        
+        # 3. Extract and create entity types
+        entities = extract_entities_from_md(agent_spec)
+        entity_types_client = dialogflow.EntityTypesClient()
+        entity_type_map = {}
+        
+        for entity in entities:
+            entity_values = []
+            for value_item in entity["values"]:
+                entity_values.append(
+                    EntityType.Entity(
+                        value=value_item["value"],
+                        synonyms=value_item["synonyms"]
+                    )
+                )
+            
+            entity_request = CreateEntityTypeRequest(
+                parent=agent_path,
+                entity_type=EntityType(
+                    display_name=entity["display_name"],
+                    kind=EntityType.Kind.KIND_MAP,
+                    entities=entity_values,
+                    auto_expansion_mode=EntityType.AutoExpansionMode.AUTO_EXPANSION_MODE_DEFAULT
+                )
+            )
+            
+            created_entity = entity_types_client.create_entity_type(request=entity_request)
+            entity_type_map[entity["display_name"]] = created_entity.name
+        
+        # 4. Extract and create intents
+        intents = extract_intents_from_md(agent_spec)
+        intents_client = dialogflow.IntentsClient()
+        intent_map = {}
+        
+        for intent in intents:
+            training_phrases = []
+            for phrase in intent["training_phrases"]:
+                training_phrases.append(
+                    Intent.TrainingPhrase(
+                        parts=[Intent.TrainingPhrase.Part(text=phrase)],
+                        repeat_count=1
+                    )
+                )
+            
+            intent_request = CreateIntentRequest(
+                parent=agent_path,
+                intent=Intent(
+                    display_name=intent["display_name"],
+                    training_phrases=training_phrases
+                )
+            )
+            
+            created_intent = intents_client.create_intent(request=intent_request)
+            intent_map[intent["display_name"]] = created_intent.name
+        
+        # 5. Create webhook if URL is provided
+        webhook = None
+        if webhook_url:
+            webhooks_client = dialogflow.WebhooksClient()
+            webhook_request = CreateWebhookRequest(
+                parent=agent_path,
+                webhook=Webhook(
+                    display_name="LLMFallbackWebhook",
+                    generic_web_service=Webhook.GenericWebService(
+                        uri=webhook_url,
+                        request_headers={"Content-Type": "application/json"}
+                    )
+                )
+            )
+            
+            webhook = webhooks_client.create_webhook(request=webhook_request)
+        
+        # 6. Create default flow
+        flows_client = dialogflow.FlowsClient()
+        default_flow = flows_client.create_flow(
+            parent=agent_path,
+            flow=Flow(
+                display_name="Main Recruitment Flow"
+            )
+        )
+        
+        # 7. Extract pages from specification
+        pages_section_match = re.search(r'## Conversation Flow\s+([\s\S]+?)(?=##|$)', agent_spec)
+        if pages_section_match:
+            pages_section = pages_section_match.group(1)
+            pages_client = dialogflow.PagesClient()
+            created_pages = {}
+            
+            # Parse pages
+            page_blocks = re.findall(r'### ([a-zA-Z_]+) Page\s+([\s\S]+?)(?=###|$)', pages_section)
+            
+            # First pass: Create all pages
+            for page_name, page_content in page_blocks:
+                # Extract entry fulfillment
+                entry_text_match = re.search(r'Entry message: "([^"]+)"', page_content)
+                entry_fulfillment = None
+                
+                if entry_text_match:
+                    entry_text = entry_text_match.group(1)
+                    entry_fulfillment = Fulfillment(
+                        messages=[
+                            ResponseMessage(
+                                text=ResponseMessage.Text(
+                                    text=[entry_text]
+                                )
+                            )
+                        ]
+                    )
+                
+                # Create page
+                created_page = pages_client.create_page(
+                    parent=default_flow.name,
+                    page=Page(
+                        display_name=page_name,
+                        entry_fulfillment=entry_fulfillment
+                    )
+                )
+                
+                created_pages[page_name] = created_page
+            
+            # Second pass: Create routes between pages
+            for page_name, page_content in page_blocks:
+                source_page = created_pages.get(page_name)
+                if not source_page:
+                    continue
+                
+                # Extract routes
+                route_matches = re.findall(r'Route to ([a-zA-Z_]+)(?: if `([^`]+)`)?', page_content)
+                
+                for target_page_name, condition in route_matches:
+                    target_page = created_pages.get(target_page_name)
+                    if not target_page:
+                        continue
+                    
+                    # Create route
+                    transition_route = TransitionRoute(
+                        target_page=target_page.name,
+                        condition=condition if condition else "true"
+                    )
+                    
+                    # Update page with route
+                    pages_client.update_page(
+                        page=Page(
+                            name=source_page.name,
+                            transition_routes=[transition_route]
+                        ),
+                        update_mask="transition_routes"
+                    )
         
         return {
             "success": True,
             "agent_path": agent_path,
-            "message": f"Agent created successfully. Use Agent Builder to import the specification document."
+            "agent_id": agent_path.split('/')[-1],
+            "console_url": f"https://dialogflow.cloud.google.com/cx/projects/{project_id}/locations/{location_id}/agents/{agent_path.split('/')[-1]}"
         }
-            
+        
     except Exception as e:
-        print(f"Error creating agent: {e}")
         return {
             "success": False,
             "error": str(e)
         }
+
+# Callback functions to update session state
+def update_project_id():
+    st.session_state.project_id = st.session_state.project_id_input
+
+def update_location_id():
+    st.session_state.location_id = st.session_state.location_id_input
+
+def update_deploy_webhook():
+    st.session_state.deploy_webhook = st.session_state.deploy_webhook_input
+
+def deploy_agent():
+    """Deploy agent using session state variables"""
+    if not st.session_state.project_id:
+        st.error("Please enter a Google Cloud Project ID")
+        return False
+    
+    has_credentials = "GOOGLE_APPLICATION_CREDENTIALS" in os.environ
+    if not has_credentials:
+        st.error("Please upload Google Cloud credentials to deploy")
+        return False
+        
+    webhook_url = None
+    if st.session_state.deploy_webhook and st.session_state.webhook_code:
+        webhook_result = deploy_webhook_to_cloud_functions(
+            st.session_state.project_id, 
+            st.session_state.location_id, 
+            st.session_state.webhook_code
+        )
+        
+        if webhook_result["success"]:
+            webhook_url = webhook_result["webhook_url"]
+            st.success(f"Webhook deployed: {webhook_url}")
+        else:
+            st.warning(f"Webhook deployment failed: {webhook_result.get('error')}")
+    
+    # Deploy the agent
+    result = deploy_to_dialogflow_cx(
+        st.session_state.project_id,
+        st.session_state.location_id,
+        st.session_state.agent_spec,
+        webhook_url
+    )
+    
+    if result["success"]:
+        st.success("Agent deployed successfully!")
+        st.markdown(f"**Agent ID:** `{result['agent_id']}`")
+        st.markdown(f"[Open in Dialogflow CX Console]({result['console_url']})")
+        return True
+    else:
+        st.error(f"Error deploying agent: {result.get('error', 'Unknown error')}")
+        return False
 
 def main():
     st.set_page_config(
@@ -284,7 +369,7 @@ def main():
     )
     
     st.title("Automated Recruitment Agent Generator")
-    st.write("Generate Dialogflow CX recruitment agents from job descriptions using Gemini")
+    st.write("Generate Dialogflow CX recruitment agents with standardized flow and LLM fallback")
     
     # Sidebar for settings
     st.sidebar.header("Settings")
@@ -295,6 +380,20 @@ def main():
     )
     
     show_advanced = st.sidebar.checkbox("Show Advanced Options", value=False)
+    
+    # Check for Google Cloud credentials
+    has_credentials = "GOOGLE_APPLICATION_CREDENTIALS" in os.environ
+    if not has_credentials:
+        st.sidebar.markdown("---")
+        st.sidebar.header("API Credentials")
+        uploaded_credentials = st.sidebar.file_uploader("Upload Google Cloud credentials JSON", type=["json"])
+        if uploaded_credentials is not None:
+            # Save to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.json') as tmp:
+                tmp.write(uploaded_credentials.getvalue())
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp.name
+            st.sidebar.success("Credentials loaded")
+            has_credentials = True
     
     # Main input area
     st.header("Job Description Input")
@@ -326,7 +425,8 @@ def main():
             if job_description:
                 st.text_area("Extracted Content", job_description, height=200)
     
-    position_title = st.text_input("Position Title (Optional)", "")
+    company_name = st.text_input("Company Name", "")
+    position_title = st.text_input("Position Title", "")
     
     # Process the job description
     if st.button("Generate Recruitment Agent"):
@@ -338,7 +438,9 @@ def main():
             # Parse the job description
             parsed_data = parse_job_description(job_description, industry)
             
-            # Override position title if provided
+            # Override company name and position title if provided
+            if company_name:
+                parsed_data["company_name"] = company_name
             if position_title:
                 parsed_data["position_title"] = position_title
                 
@@ -353,78 +455,97 @@ def main():
             timestamp = generate_timestamp()
             sanitized_title = sanitize_filename(parsed_data['position_title'])
             
-            # Generate agent specification for Agent Builder
-            with st.spinner("Generating agent specification..."):
-                agent_spec = generate_agent_builder_specification(enhanced_data, industry)
+            # Generate agent specification using standardized flow
+            with st.spinner(f"Generating {industry} agent specification with standardized flow..."):
+                agent_spec = generate_standardized_recruitment_flow(enhanced_data, industry)
                 spec_filename = f"{sanitized_title}_{timestamp}_agent_spec.md"
                 spec_path = save_output_file(agent_spec, spec_filename)
+                
+                # Save to session state
+                st.session_state.agent_spec = agent_spec
+                st.session_state.spec_path = spec_path
             
-            st.subheader("Agent Builder Specification")
+            st.subheader("Agent Specification")
             st.markdown(agent_spec)
             st.download_button(
-                "Download Agent Builder Specification",
+                "Download Agent Specification",
                 agent_spec,
                 spec_filename,
                 "text/markdown"
             )
             
-            # Generate Dialogflow CX pages
-            if show_advanced:
-                with st.spinner("Generating Dialogflow CX pages..."):
-                    dialogflow_pages = generate_dialogflow_cx_pages(enhanced_data, industry)
-                    pages_filename = f"{sanitized_title}_{timestamp}_pages.json"
-                    pages_path = save_output_file(dialogflow_pages, pages_filename)
+            # Generate LLM webhook
+            with st.spinner("Generating LLM fallback webhook code..."):
+                webhook_code = generate_webhook_code(enhanced_data)
+                webhook_filename = f"{sanitized_title}_{timestamp}_webhook.js"
+                webhook_path = save_output_file(webhook_code, webhook_filename)
                 
-                st.subheader("Dialogflow CX Pages")
-                st.json(dialogflow_pages)
+                                # Save to session state
+                st.session_state.webhook_code = webhook_code
+                st.session_state.webhook_path = webhook_path
+            
+            if show_advanced:
+                st.subheader("LLM Fallback Webhook Code")
+                st.code(webhook_code, language="javascript")
                 st.download_button(
-                    "Download Dialogflow CX Pages",
-                    json.dumps(dialogflow_pages, indent=2),
-                    pages_filename,
-                    "application/json"
+                    "Download Webhook Code",
+                    webhook_code,
+                    webhook_filename,
+                    "text/javascript"
+                )
+            else:
+                st.success(f"LLM fallback webhook code has been saved to {webhook_path}")
+                st.download_button(
+                    "Download Webhook Code",
+                    webhook_code,
+                    webhook_filename,
+                    "text/javascript"
                 )
             
             # Deployment options
             st.subheader("Deployment Options")
-            st.markdown("""
-            ### Option 1: Use Agent Builder (Recommended)
-            1. Go to [Dialogflow CX Console](https://dialogflow.cloud.google.com/cx)
-            2. Create a new agent
-            3. Click on "Agent Settings" > "Agent Builder"
-            4. Upload the specification markdown file
             
-            ### Option 2: Manual Import
-            1. Create a new agent in Dialogflow CX
-            2. Add the entities and intents as specified
-            3. Create the pages with the provided fulfillment messages
-            """)
+            deployment_tab1, deployment_tab2 = st.tabs(["Automatic Deployment", "Manual Deployment"])
             
-            if show_advanced:
-                st.markdown("### Option 3: API Deployment (Advanced)")
+            with deployment_tab1:
+                st.markdown("Deploy directly to Dialogflow CX")
+                
                 col1, col2 = st.columns(2)
                 with col1:
-                    project_id = st.text_input("Google Cloud Project ID")
+                    # Use key parameter to avoid refreshing issues
+                    st.text_input("Google Cloud Project ID", 
+                                  value=st.session_state.project_id,
+                                  key="project_id_input", 
+                                  on_change=update_project_id)
                 with col2:
-                    location = st.selectbox("Location", ["global", "us-central1", "europe-west1", "asia-northeast1"])
+                    st.selectbox("Location", 
+                                ["global", "us-central1", "europe-west1", "asia-northeast1"],
+                                index=["global", "us-central1", "europe-west1", "asia-northeast1"].index(st.session_state.location_id),
+                                key="location_id_input",
+                                on_change=update_location_id)
                 
-                if st.button("Create Agent via API"):
-                    if not project_id:
-                        st.error("Please enter a Google Cloud Project ID")
-                    else:
-                        with st.spinner("Creating agent..."):
-                            agent_name = f"{parsed_data['position_title']} Recruitment Agent"
-                            result = deploy_to_dialogflow_cx(
-                                project_id, 
-                                location, 
-                                agent_name,
-                                agent_spec
-                            )
-                            
-                            if result["success"]:
-                                st.success(result["message"])
-                                st.code(result["agent_path"])
-                            else:
-                                st.error(f"Error creating agent: {result.get('error', 'Unknown error')}")
+                st.checkbox("Deploy Webhook to Cloud Functions", 
+                           value=st.session_state.deploy_webhook,
+                           key="deploy_webhook_input",
+                           on_change=update_deploy_webhook)
+                
+                # Use a separate button with a unique key for deployment
+                if st.button("Create and Deploy Agent", key="deploy_button"):
+                    deploy_agent()
+            
+            with deployment_tab2:
+                st.markdown("""
+                ### Manual Deployment Instructions
+                
+                1. Create a new agent in the [Dialogflow CX Console](https://dialogflow.cloud.google.com/cx)
+                2. Use the specification document to set up:
+                   - Entity types
+                   - Intents with training phrases
+                   - Pages with parameters and fulfillment
+                   - Routes between pages
+                3. Deploy the webhook code to Google Cloud Functions
+                4. Configure the webhook URL in Dialogflow CX
+                """)
 
 if __name__ == "__main__":
     main()

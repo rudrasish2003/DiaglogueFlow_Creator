@@ -1,28 +1,100 @@
 {
-    "entities": [
-      {
-        "display_name": "experience_level",
-        "values": [
-          {"value": "entry", "synonyms": ["beginner", "new", "starting out"]},
-          {"value": "mid", "synonyms": ["intermediate", "few years"]},
-          {"value": "senior", "synonyms": ["experienced", "senior", "veteran"]}
-        ]
-      },
-      {
-        "display_name": "availability",
-        "values": [
-          {"value": "full_time", "synonyms": ["full-time", "40 hours"]},
-          {"value": "part_time", "synonyms": ["part-time", "partial"]},
-          {"value": "contract", "synonyms": ["freelance", "temporary"]}
-        ]
+  "template_version": "1.0",
+  "entities": [
+    {
+      "display_name": "yes_no",
+      "values": [
+        {"value": "yes", "synonyms": ["yeah", "yep", "sure", "correct", "yes please", "definitely", "absolutely"]},
+        {"value": "no", "synonyms": ["nope", "nah", "not really", "negative", "not at all"]}
+      ]
+    },
+    {
+      "display_name": "employment_status",
+      "values": [
+        {"value": "employed", "synonyms": ["working", "have a job", "currently employed"]},
+        {"value": "unemployed", "synonyms": ["not working", "between jobs", "looking for work"]},
+        {"value": "part_time", "synonyms": ["part time", "partial employment"]}
+      ]
+    },
+    {
+      "display_name": "experience_level",
+      "values": [
+        {"value": "entry", "synonyms": ["beginner", "new", "starting out"]},
+        {"value": "mid", "synonyms": ["intermediate", "few years"]},
+        {"value": "senior", "synonyms": ["experienced", "senior", "veteran"]}
+      ]
+    }
+  ],
+  "standard_recruitment_flow": {
+    "welcome": {
+      "message": "Hi, this is RecruitAI from {company_name}. This call is regarding {position} position at {company_name} you applied for. Is this a good time to talk about it?",
+      "parameter": "good_time",
+      "entity": "@yes_no"
+    },
+    "interest_confirmation": {
+      "message": "Are you interested in the position?",
+      "parameter": "is_interested",
+      "entity": "@yes_no"
+    },
+    "name_confirmation": {
+      "message": "Great! Could you confirm your name for our records?",
+      "parameter": "candidate_name",
+      "entity": "@sys.person"
+    },
+    "previous_experience_check": {
+      "message": "Have you worked for {company_name} before?",
+      "parameter": "worked_for_company",
+      "entity": "@yes_no",
+      "follow_up": {
+        "if_yes": "position_check",
+        "if_no": "qualification_check_1"
       }
+    },
+    "qualification_check_1": {
+      "message": "Do you have {qualification_1}?",
+      "parameter": "has_qualification_1",
+      "entity": "@yes_no"
+    },
+    "qualification_check_2": {
+      "message": "Are you at least {age_requirement} years old?",
+      "parameter": "meets_age_requirement",
+      "entity": "@yes_no"
+    },
+    "transportation_check": {
+      "message": "Do you have reliable transportation to get to the job every day?",
+      "parameter": "has_transportation",
+      "entity": "@yes_no",
+      "follow_up": {
+        "if_no": "address_collection"
+      }
+    },
+    "current_employment": {
+      "message": "Where are you currently working and why are you looking to change?",
+      "parameters": ["current_employer", "reason_for_change"]
+    },
+    "background_check": {
+      "message": "Will you be able to pass a background verification check?",
+      "parameter": "can_pass_checks",
+      "entity": "@yes_no"
+    },
+    "conclusion": {
+      "message": "Thank you for your time. Based on our conversation, we'll be in touch regarding next steps. Do you have any questions for me?"
+    }
+  },
+  "industry_specific_parameters": {
+    "qualification_1": "the required experience for this position",
+    "qualification_2": "the necessary skills for this role",
+    "age_requirement": "18",
+    "special_requirements": [
+      "background check",
+      "reference check"
     ],
-    "default_questions": [
-      "How many years of experience do you have in this field?",
-      "What skills or qualifications do you have that make you a good fit?",
-      "Tell me about your availability and preferred work schedule.",
-      "What are you looking for in your next position?",
-      "Do you have any questions about the role or company?"
-    ],
-    "conversational_style": "professional but friendly, with occasional casual language"
+    "common_questions": [
+      "What is the salary?",
+      "What are the working hours?",
+      "What benefits are offered?",
+      "When would the position start?",
+      "What is the interview process?"
+    ]
   }
+}

@@ -25,95 +25,70 @@ def load_industry_template(industry):
         # Return minimal template
         return {
             "entities": [],
-            "intents": [],
-            "conversational_style": "professional and friendly"
+            "standard_recruitment_flow": {},
+            "industry_specific_parameters": {}
         }
 
-def generate_agent_builder_specification(parsed_info, industry):
+def generate_standardized_recruitment_flow(parsed_info, industry):
     """
-    Generate a document for Dialogflow CX Agent Builder
+    Generate a recruitment agent using the standardized flow from the template
+    with LLM fallback for handling questions outside the standard flow
     """
+    # Load the appropriate industry template
     template = load_industry_template(industry)
     
-    prompt = f"""
-    Create a detailed Dialogflow CX Agent Builder specification document for a recruitment agent interviewing candidates for this position:
+    # Extract standardized flow from template
+    flow = template.get("standard_recruitment_flow", {})
+    industry_params = template.get("industry_specific_parameters", {})
     
-    {json.dumps(parsed_info, indent=2)}
+    # Get company-specific info from parsed data
+    company_name = parsed_info.get("company_name", "the company")
+    position_title = parsed_info.get("position_title", "the position")
     
-    Industry context: {industry}
-    Template guidelines: {json.dumps(template, indent=2)}
-    
-    Your response should be a comprehensive document formatted for direct upload to Dialogflow CX Agent Builder.
-    Include these sections:
-    
-    # {parsed_info.get('position_title', 'Position')} Recruitment Agent
-    
-    ## Agent Overview
-    [Describe the agent's purpose and conversation style]
-    
-    ## Conversation Flow
-    [Detailed description of the full interview flow from greeting to conclusion]
-    
-    ## Questions To Ask Candidates
-    [List all questions with explanations of why they're important]
-    
-    ## Candidate Question Handling
-    [How to respond to common candidate questions about the position]
-    
-    ## Entity Types
-    [List all entity types needed for parameter collection]
-    
-    ## Key Intents
-    [List major intents with example training phrases]
-    
-    ## Conversational Elements
-    [Examples of natural-sounding responses that show personality]
+    # Create a formatted job description for the LLM context
+    job_description_context = f"""
+    Position: {position_title}
+    Company: {company_name}
+    Requirements: {parsed_info.get('required_qualifications', '')}
+    Pay: {parsed_info.get('pay_rate', '')}
+    Schedule: {parsed_info.get('schedule_type', '')}
+    Benefits: {parsed_info.get('benefits', '')}
+    Location: {parsed_info.get('location', '')}
     """
-    
-    try:
-        # Generate content using Gemini
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(prompt)
-        
-        # Return the markdown text directly
-        return response.text
-        
-    except Exception as e:
-        print(f"Error generating agent specification: {e}")
-        raise
-
-def generate_dialogflow_cx_pages(parsed_info, industry):
-    """
-    Generate Dialogflow CX pages with conversational content
-    """
-    template = load_industry_template(industry)
     
     prompt = f"""
-    Create detailed Dialogflow CX pages for a recruitment agent interviewing candidates for this position:
+    Create a detailed Dialogflow CX specification for a {industry} recruitment agent for {company_name}.
     
+    Position: {position_title}
+    Company: {company_name}
+    
+    Use this EXACT conversation flow structure:
+    {json.dumps(flow, indent=2)}
+    
+    And these industry-specific parameters:
+    {json.dumps(industry_params, indent=2)}
+    
+    The full job details are:
     {json.dumps(parsed_info, indent=2)}
     
-    Industry: {industry}
+    IMPORTANT: Include a special "Candidate Questions Handling" section with:
     
-    Generate a JSON array of pages with these components for each page:
+    1. A robust fallback intent to catch any candidate questions not in the standard flow
+    2. Configuration for a webhook that will call an LLM to answer these questions
+    3. A way to track the conversation state so the agent can resume the standard flow after answering questions
     
-    1. "displayName": Page name
-    2. "description": Brief description of the page's purpose
-    3. "entryFulfillment": Response when entering the page, with 3 conversational variants
-    4. "form": Parameter to collect (if any)
-    5. "routes": Transitions to other pages
+    The LLM should use this job information as context:
+    {job_description_context}
     
-    Include these key pages:
-    - Welcome (greeting and introduction)
-    - Experience Questions (ask about candidate experience)
-    - Skills Assessment (questions related to required skills)
-    - Schedule Discussion (discuss work schedule preferences)
-    - Candidate Questions (handle questions about job)
-    - Scheduling (set up next steps)
-    - Conclusion (end the conversation)
+    Generate a complete specification document with:
+    1. All conversation pages following the exact flow provided
+    2. Appropriate parameters for each page
+    3. Entity definitions
+    4. Routing logic between pages
+    5. Fulfillment messages that sound natural and conversational
+    6. The LLM fallback handling for out-of-context questions
     
-    Make all responses sound conversational, using casual language with filler words.
-    JSON array of pages only.
+    Format this as a comprehensive Dialogflow CX specification document.
     """
     
     try:
@@ -121,31 +96,44 @@ def generate_dialogflow_cx_pages(parsed_info, industry):
         model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt)
         
-        # Extract and parse JSON from response text
-        response_text = response.text
-        json_start = response_text.find('[')
-        json_end = response_text.rfind(']') + 1
+        # Return the markdown text directly
+        return response.text
         
-        if json_start >= 0 and json_end > json_start:
-            json_content = response_text[json_start:json_end]
-            pages = json.loads(json_content)
-            return pages
-        else:
-            raise ValueError("No valid JSON array found in response")
-            
-    except json.JSONDecodeError:
-        print("Error: Response was not valid JSON")
-        # Return minimal pages
-        return [
-            {
-                "displayName": "Welcome",
-                "entryFulfillment": {
-                    "messages": [
-                        {"text": {"text": ["Hello, this is the recruitment agent. How are you today?"]}}
-                    ]
-                }
-            }
-        ]
     except Exception as e:
-        print(f"Error generating pages: {e}")
+        print(f"Error generating standardized recruitment flow: {e}")
+        raise
+
+def generate_webhook_code(parsed_info):
+    """
+    Generate the webhook code for LLM integration with Dialogflow CX
+    """
+    prompt = f"""
+    Create a Node.js webhook function for Dialogflow CX that:
+    
+    1. Processes candidate questions that fall outside the standard recruitment flow
+    2. Uses Google's Generative AI (Gemini) to generate relevant answers based on the job description
+    3. Returns the answer to Dialogflow CX in the correct format
+    4. Maintains conversation context to continue the standard flow afterward
+    
+    The job details to use as context are:
+    {json.dumps(parsed_info, indent=2)}
+    
+    Include:
+    - Complete code with proper error handling
+    - Instructions for deployment to Cloud Functions
+    - How to configure the webhook in Dialogflow CX
+    
+    Return the code with detailed comments.
+    """
+    
+    try:
+        # Generate content using Gemini
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt)
+        
+        # Return the webhook code
+        return response.text
+        
+    except Exception as e:
+        print(f"Error generating webhook code: {e}")
         raise

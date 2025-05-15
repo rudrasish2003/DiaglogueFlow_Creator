@@ -1,30 +1,147 @@
 {
-    "entities": [
-      {
-        "display_name": "truck_type",
-        "values": [
-          {"value": "semi", "synonyms": ["tractor-trailer", "18-wheeler"]},
-          {"value": "flatbed", "synonyms": ["open bed", "platform"]},
-          {"value": "tanker", "synonyms": ["tank truck", "liquid hauler"]},
-          {"value": "refrigerated", "synonyms": ["reefer", "cold haul"]},
-          {"value": "box truck", "synonyms": ["straight truck", "cube van"]}
-        ]
-      },
-      {
-        "display_name": "schedule_preference",
-        "values": [
-          {"value": "local", "synonyms": ["day runs", "home daily"]},
-          {"value": "regional", "synonyms": ["few days out"]},
-          {"value": "long-haul", "synonyms": ["OTR", "over the road", "cross country"]}
-        ]
+  "template_version": "1.0",
+  "entities": [
+    {
+      "display_name": "yes_no",
+      "values": [
+        {"value": "yes", "synonyms": ["yeah", "yep", "sure", "correct", "yes please", "definitely", "absolutely"]},
+        {"value": "no", "synonyms": ["nope", "nah", "not really", "negative", "not at all"]}
+      ]
+    },
+    {
+      "display_name": "position_type",
+      "values": [
+        {"value": "driver", "synonyms": ["truck driver", "delivery driver", "commercial driver", "CDL driver"]},
+        {"value": "other", "synonyms": ["different position", "other role", "not driving", "another department"]}
+      ]
+    },
+    {
+      "display_name": "employment_status",
+      "values": [
+        {"value": "employed", "synonyms": ["working", "have a job", "currently employed"]},
+        {"value": "unemployed", "synonyms": ["not working", "between jobs", "looking for work"]},
+        {"value": "part_time", "synonyms": ["part time", "partial employment"]}
+      ]
+    },
+    {
+      "display_name": "truck_type",
+      "values": [
+        {"value": "semi", "synonyms": ["tractor-trailer", "18-wheeler", "big rig"]},
+        {"value": "flatbed", "synonyms": ["open bed", "platform"]},
+        {"value": "tanker", "synonyms": ["tank truck", "liquid hauler"]},
+        {"value": "refrigerated", "synonyms": ["reefer", "cold haul"]},
+        {"value": "box_truck", "synonyms": ["straight truck", "cube van", "box van"]}
+      ]
+    }
+  ],
+  "standard_recruitment_flow": {
+    "welcome": {
+      "message": "Hi, this is RecruitAI from {company_name}. This call is regarding {position} position at {company_name} you applied for. Is this a good time to talk about it?",
+      "parameter": "good_time",
+      "entity": "@yes_no"
+    },
+    "interest_confirmation": {
+      "message": "Are you interested in the position?",
+      "parameter": "is_interested",
+      "entity": "@yes_no"
+    },
+    "name_confirmation": {
+      "message": "Great! Could you confirm your name for our records?",
+      "parameter": "candidate_name",
+      "entity": "@sys.person"
+    },
+    "previous_experience_check": {
+      "message": "Have you worked for {company_name} before?",
+      "parameter": "worked_for_company",
+      "entity": "@yes_no",
+      "follow_up": {
+        "if_yes": "position_check",
+        "if_no": "qualification_check_1"
       }
+    },
+    "position_check": {
+      "message": "Did you work as a driver or in another position?",
+      "parameter": "previous_position",
+      "entity": "@position_type",
+      "follow_up": {
+        "if_driver": "last_working_day", 
+        "if_other": "qualification_check_1"
+      }
+    },
+    "last_working_day": {
+      "message": "When was your last working day? Please provide the month and year.",
+      "parameter": "last_working_day",
+      "entity": "@sys.date",
+      "follow_up": {
+        "if_recent": "company_id_information",
+        "if_not_recent": "qualification_check_1"
+      }
+    },
+    "company_id_information": {
+      "message": "Could you please provide your previous ID number, supervisor name, and location?",
+      "parameters": ["company_id", "supervisor_name", "previous_location"]
+    },
+    "qualification_check_1": {
+      "message": "Do you have {qualification_1}?",
+      "parameter": "has_qualification_1",
+      "entity": "@yes_no"
+    },
+    "qualification_check_2": {
+      "message": "Are you at least {age_requirement} years old?",
+      "parameter": "meets_age_requirement",
+      "entity": "@yes_no"
+    },
+    "transportation_check": {
+      "message": "Do you have reliable transportation to get to the job every day?",
+      "parameter": "has_transportation",
+      "entity": "@yes_no",
+      "follow_up": {
+        "if_no": "address_collection"
+      }
+    },
+    "address_collection": {
+      "message": "What is your current address so we can check the distance to our facility?",
+      "parameter": "candidate_address",
+      "entity": "@sys.address"
+    },
+    "current_employment": {
+      "message": "Where are you currently working and why are you looking to change?",
+      "parameters": ["current_employer", "reason_for_change"],
+      "special_check": {
+        "if_part_time_seeking": "inform_full_time_requirement",
+        "if_unemployed": "ask_duration_reason"
+      }
+    },
+    "background_check": {
+      "message": "Will you be able to pass a background verification check, drug test, and physical check?",
+      "parameter": "can_pass_checks",
+      "entity": "@yes_no"
+    },
+    "company_track_record": {
+      "message": "Since you worked with us before, could you tell me about your record - any incidents, issues, or notable achievements?",
+      "parameter": "previous_record",
+      "entity": "@sys.any"
+    },
+    "conclusion": {
+      "message": "Thank you for your time. Based on our conversation, we'll be in touch regarding next steps. Do you have any questions for me?"
+    }
+  },
+  "industry_specific_parameters": {
+    "qualification_1": "a valid Commercial Driver's License (CDL)",
+    "qualification_2": "previous experience with {truck_type} trucks",
+    "age_requirement": "21",
+    "special_requirements": [
+      "DOT medical card",
+      "clean driving record",
+      "ability to lift up to 50 pounds"
     ],
-    "default_questions": [
-      "How many years of commercial driving experience do you have?",
-      "What types of trucks have you driven?",
-      "Do you have experience with interstate driving?",
-      "Tell me about your driving record.",
-      "What kind of schedule are you looking for?"
-    ],
-    "conversational_style": "casual, using trucking terminology like 'haulin', 'rig', etc."
+    "truck_types": ["semi", "flatbed", "refrigerated", "tanker", "box truck"],
+    "common_questions": [
+      "What is the pay rate?",
+      "How many hours per week?",
+      "What type of trucks will I be driving?",
+      "Is this local or long-haul?",
+      "What benefits are offered?"
+    ]
   }
+}

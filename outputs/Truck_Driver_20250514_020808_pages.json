@@ -1,0 +1,445 @@
+[
+  {
+    "displayName": "Welcome",
+    "description": "Greets the candidate and introduces the interview.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Hi there! Thanks for taking the time to interview for the Truck Driver position. I'm excited to learn more about you!"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Hey! Welcome to the interview for the Truck Driver role. I'm looking forward to our conversation."
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Hello! Thanks for joining me today. We're interviewing for a Truck Driver position, and I'll be guiding you through the process."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Experience Questions",
+        "condition": "true",
+        "transition": "Experience Questions"
+      }
+    ]
+  },
+  {
+    "displayName": "Experience Questions",
+    "description": "Asks questions about the candidate's driving experience.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Okay, let's dive in. So, can you describe your OTR experience and the types of freight you've hauled?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Alright, let's get started. Tell me a bit about your experience driving OTR and what kind of stuff you've been hauling."
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "So, first things first, could you give me an overview of your over-the-road driving experience? What types of freight have you typically hauled?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Skills Assessment",
+        "condition": "true",
+        "transition": "Skills Assessment"
+      }
+    ]
+  },
+  {
+    "displayName": "Skills Assessment",
+    "description": "Evaluates the candidate's skills related to driving and regulations.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Great. Now, tell me about your experience with ELD devices and maintaining accurate logs. Which systems have you worked with?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Alright, let's switch gears. What's your experience with ELD devices? How comfortable are you with maintaining accurate logs?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Okay, so, let's talk about ELDs. Can you tell me about your experience with electronic logging devices and your approach to maintaining accurate driver logs?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Schedule Discussion",
+        "condition": "true",
+        "transition": "Schedule Discussion"
+      }
+    ]
+  },
+  {
+    "displayName": "Schedule Discussion",
+    "description": "Discusses the candidate's preferred work schedule.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Gotcha. Are you comfortable being out on the road for 2-3 weeks at a time, or would you prefer a regional schedule with weekly home time?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Okay, so, how do you feel about being on the road for 2-3 weeks at a stretch? We also have regional options if you prefer to be home weekly."
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Now, let's talk about scheduling. How do you feel about being out on the road for 2-3 weeks at a time? We do have regional options as well."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Candidate Questions",
+        "condition": "true",
+        "transition": "Candidate Questions"
+      }
+    ]
+  },
+  {
+    "displayName": "Candidate Questions",
+    "description": "Handles questions from the candidate about the job.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "So, do you have any questions for me about the position, the company, or anything else we've discussed?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Alright, what questions do you have for me about the job or our company?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Now's your chance! What questions do you have for me?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Handle Question about Truck Type",
+        "condition": "$page.params.candidate_question.resolved = true AND $page.params.candidate_question.original.contains(\"trucks\")",
+        "transition": "TruckTypeAnswer"
+      },
+      {
+        "description": "Handle Question about Idle Policy",
+        "condition": "$page.params.candidate_question.resolved = true AND $page.params.candidate_question.original.contains(\"idle\")",
+        "transition": "IdlePolicyAnswer"
+      },
+      {
+        "description": "Handle Question about Dispatcher",
+        "condition": "$page.params.candidate_question.resolved = true AND $page.params.candidate_question.original.contains(\"dispatcher\")",
+        "transition": "DispatcherAnswer"
+      },
+      {
+        "description": "Handle Question about Benefits",
+        "condition": "$page.params.candidate_question.resolved = true AND $page.params.candidate_question.original.contains(\"benefits\")",
+        "transition": "BenefitsAnswer"
+      },
+      {
+        "description": "Handle Question about Haul Length",
+        "condition": "$page.params.candidate_question.resolved = true AND $page.params.candidate_question.original.contains(\"haul\")",
+        "transition": "HaulLengthAnswer"
+      },
+      {
+        "description": "Handle Question about Home Time",
+        "condition": "$page.params.candidate_question.resolved = true AND $page.params.candidate_question.original.contains(\"home time\")",
+        "transition": "HomeTimeAnswer"
+      },
+      {
+        "description": "Transition to Scheduling",
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "TruckTypeAnswer",
+    "description": "Answers questions about the truck types.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We have a fleet of newer model trucks, primarily Freightliner Cascadias and Kenworth T680s, equipped with automatic transmissions and the latest safety technology."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Scheduling",
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "IdlePolicyAnswer",
+    "description": "Answers questions about the idle policy.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We understand the need for comfort on the road. Our idle policy allows for reasonable idling in extreme temperatures to maintain driver comfort and safety. We also encourage drivers to utilize APUs (Auxiliary Power Units) where available."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Scheduling",
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "DispatcherAnswer",
+    "description": "Answers questions about the dispatchers.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We pride ourselves on having experienced and supportive dispatchers. You will have a dedicated dispatcher who you will work with closely to plan your routes and address any issues that may arise. We value open communication and a collaborative relationship between our drivers and dispatchers."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Scheduling",
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "BenefitsAnswer",
+    "description": "Answers questions about the benefits offered.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "In addition to medical, dental, and vision insurance, we offer a 401(k) retirement plan with a company match, paid vacation time, safety bonuses, paid orientation and training, direct deposit, and a rider and pet policy. We also offer driver referral bonuses."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Scheduling",
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "HaulLengthAnswer",
+    "description": "Answers questions about the haul length.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Our average length of haul is typically between 500-700 miles, although it can vary depending on the specific route and freight."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Scheduling",
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "HomeTimeAnswer",
+    "description": "Answers questions about the home time.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "We understand the importance of home time. We work with our drivers to schedule home time according to their preferences and in compliance with DOT regulations. You'll coordinate directly with your dispatcher to request and approve your home time."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": [
+      {
+        "description": "Transition to Scheduling",
+        "condition": "true",
+        "transition": "Scheduling"
+      }
+    ]
+  },
+  {
+    "displayName": "Scheduling",
+    "description": "Schedules the next steps in the recruitment process.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Okay, great. Well, that's all the questions I had for you. What's the best email address to send the scheduling options to?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Okay, cool. So that wraps up my questions for you. What is your email, and I will send you our scheduling options?"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Great, that concludes the interview. Can I get your email address, so I can send you over the scheduling options?"
+            ]
+          }
+        }
+      ]
+    },
+    "form": {
+      "parameters": [
+        {
+          "id": "email",
+          "entityType": "@sys.email",
+          "fillBehavior": {
+            "initialPromptFulfillment": {
+              "messages": [
+                {
+                  "text": {
+                    "text": [
+                      "Please provide your email address."
+                    ]
+                  }
+                }
+              ]
+            },
+            "repromptEvent": "email_not_valid"
+          },
+          "required": true
+        }
+      ]
+    },
+    "routes": [
+      {
+        "description": "Transition to Conclusion",
+        "condition": "true",
+        "transition": "Conclusion"
+      }
+    ]
+  },
+  {
+    "displayName": "Conclusion",
+    "description": "Ends the interview.",
+    "entryFulfillment": {
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Awesome! Thanks for your time. We'll be in touch soon to discuss the next steps. Have a great day!"
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Great. Thanks for interviewing with us today! We will be in contact with you soon."
+            ]
+          }
+        },
+        {
+          "text": {
+            "text": [
+              "Well, thank you for taking the time to interview today. We will be in touch with updates."
+            ]
+          }
+        }
+      ]
+    },
+    "form": {},
+    "routes": []
+  }
+]

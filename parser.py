@@ -20,13 +20,16 @@ def parse_job_description(job_description, industry="general"):
     
     Format your response as a JSON object with these fields:
     1. "position_title": The job title
-    2. "required_experience": Years or type of experience required
-    3. "required_skills": List of required skills/certifications
-    4. "pay_rate": Salary or hourly rate information
-    5. "schedule_type": Working hours or shift information
-    6. "key_questions": List of 5-7 specific questions to ask candidates
-    7. "benefits": List of benefits offered
-    8. "requirements": Any specific requirements like licenses, education, etc.
+    2. "company_name": The company name (infer if not explicitly stated)
+    3. "required_experience": Years or type of experience required
+    4. "required_skills": List of required skills/certifications
+    5. "required_qualifications": List of qualifications like licenses, certifications, etc.
+    6. "pay_rate": Salary or hourly rate information
+    7. "schedule_type": Working hours or shift information
+    8. "location": Job location information
+    9. "benefits": List of benefits offered
+    10. "job_description": Brief summary of the job responsibilities
+    11. "screening_requirements": List of screening requirements (background checks, drug tests, etc.)
     
     JSON response only:
     """
@@ -38,7 +41,6 @@ def parse_job_description(job_description, industry="general"):
         
         # Extract and parse JSON from response text
         response_text = response.text
-        # Find JSON content in response (handles cases where text has additional content)
         json_start = response_text.find('{')
         json_end = response_text.rfind('}') + 1
         
@@ -54,9 +56,10 @@ def parse_job_description(job_description, industry="general"):
         # Return a minimal valid structure
         return {
             "position_title": "Unknown Position",
+            "company_name": "Unknown Company",
             "required_experience": "Not specified",
             "required_skills": [],
-            "key_questions": []
+            "job_description": "No description available"
         }
     except Exception as e:
         print(f"Error parsing job description: {e}")
@@ -72,10 +75,12 @@ def enhance_parsed_data(parsed_data, industry):
     {json.dumps(parsed_data, indent=2)}
     
     Add or improve:
-    1. More detailed interview questions specific to this role
-    2. Industry-specific terms to use in conversation
-    3. Common candidate questions for this role with answers
-    4. Objection handling for potential candidate concerns
+    1. "common_candidate_questions": List of 5-10 common questions candidates might ask about this role
+    2. "question_answers": Dictionary of answers to common questions
+    3. "objection_handling": Dictionary of common objections and how to address them
+    4. "key_screening_questions": 5-8 key questions to ask candidates during screening
+    5. "age_requirement": Minimum age requirement for the position (e.g., "21" for trucking)
+    6. "qualification_checks": List of specific qualifications to verify (like "CDL", "DOT Medical Card", etc.)
     
     Return the complete enhanced JSON including all original fields plus new ones.
     JSON response only:

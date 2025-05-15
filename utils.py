@@ -46,5 +46,7 @@ def sanitize_filename(text):
     """
     Sanitize text for use in filenames
     """
+    if not text:
+        return "untitled"
     # Replace spaces and special characters
     return "".join([c if c.isalnum() else "_" for c in text]).strip("_")
